@@ -1,4 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import bgRepublica from "./assets/republica.webp";
+import imgR1 from "./assets/R1.avif";
+import imgR2 from "./assets/R2.avif";
+import imgI1 from "./assets/I1.avif";
+import imgI2 from "./assets/I2.avif";
+import imgP1 from "./assets/P1.avif";
+import imgP2 from "./assets/P2.avif";
+import imgMapa from "./assets/mapa.png";
+import { MapPin } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -18,11 +27,12 @@ const C = {
 
 /* ─── DATA ───────────────────────────────────────────────────── */
 const INIT_PROPS = [
-  { id:1, name:"Apartamento en la Carolina", group:"República", price:35, rooms:2, on:false },
-  { id:2, name:"Suite Ejecutiva Norte",      group:"República", price:45, rooms:1, on:true  },
-  { id:3, name:"Loft La Mariscal",           group:"Centro",    price:30, rooms:1, on:false },
-  { id:4, name:"Piso Alto Iñaquito",         group:"Norte",     price:55, rooms:3, on:true  },
-  { id:5, name:"Estudio La Pradera",         group:"Norte",     price:28, rooms:1, on:true  },
+  { id:1, name:"Apartamento en la Carolina", group:"República",  price:35, rooms:2, on:true,  img:imgR1 },
+  { id:2, name:"Suite Ejecutiva República",  group:"República",  price:48, rooms:1, on:true,  img:imgR2 },
+  { id:3, name:"Estudio Oxford",             group:"Inglaterra", price:38, rooms:1, on:true,  img:imgI1 },
+  { id:4, name:"Loft Naciones Unidas",       group:"Inglaterra", price:52, rooms:2, on:false, img:imgI2 },
+  { id:5, name:"Jardín Pradera Sur",         group:"Pradera",    price:30, rooms:1, on:true,  img:imgP1 },
+  { id:6, name:"Piso Alto Pradera",          group:"Pradera",    price:44, rooms:2, on:true,  img:imgP2 },
 ];
 
 const CANAL   = [{ name:"OTA", value:55 }, { name:"Directo", value:45 }];
@@ -54,9 +64,12 @@ const ML = [
   {prop:"Estudio Pradera", act:28,sug:32,dem:"Alta", t:"↑"},
 ];
 const T_PROPS = [
-  {id:1,name:"Suite ejecutiva zona comercial",  addr:"Calle Inglaterra 234",    rooms:2,price:15},
-  {id:2,name:"Apartamento La Carolina",         addr:"Av. Naciones Unidas 456", rooms:1,price:25},
-  {id:3,name:"Loft moderno La Mariscal",        addr:"Calama 789",              rooms:1,price:35},
+  { id:1, name:"Apartamento en la Carolina", addr:"Av. República 234",       rooms:2, price:35, img:imgR1, group:"República"  },
+  { id:2, name:"Suite Ejecutiva República",  addr:"Av. República 456",       rooms:1, price:48, img:imgR2, group:"República"  },
+  { id:3, name:"Estudio Oxford",             addr:"Calle Inglaterra 789",    rooms:1, price:38, img:imgI1, group:"Inglaterra" },
+  { id:4, name:"Loft Naciones Unidas",       addr:"Av. Naciones Unidas 123", rooms:2, price:52, img:imgI2, group:"Inglaterra" },
+  { id:5, name:"Jardín Pradera Sur",         addr:"Calle Pradera Sur 45",    rooms:1, price:30, img:imgP1, group:"Pradera"    },
+  { id:6, name:"Piso Alto Pradera",          addr:"Av. La Pradera 78",       rooms:2, price:44, img:imgP2, group:"Pradera"    },
 ];
 const NOTIFS = [
   {id:1,t:"Nueva reserva: María García",      s:"Apto Carolina · hace 5 min",r:false},
@@ -130,12 +143,18 @@ export default function PropTEC() {
   const [loginRole,  setLoginRole]  = useState("gestor");
   const [newProp,    setNewProp]    = useState({name:"",group:"",price:"",rooms:"",amenities:[]});
   const [resvForm,   setResvForm]   = useState({entrada:"",salida:"",nombre:"",email:""});
+  const [grupoFiltro, setGrupoFiltro] = useState(null);
   const [regData,    setRegData]    = useState({tipo:"",nombre:"",apellido:"",email:"",pwd:"",pwd2:"",t1:false,t2:false});
 
   const toggleProp = (id) => setProps(ps => ps.map(p => p.id===id ? {...p,on:!p.on} : p));
   const nights = () => resvForm.entrada&&resvForm.salida
     ? Math.max(1, Math.round((new Date(resvForm.salida)-new Date(resvForm.entrada))/86400000)) : 1;
   const navTo = (tab) => { setManTab(tab); setShowExport(false); setShowNotif(false); };
+  const mapRef  = useRef(null);
+  const dragRef = useRef({dragging:false,startX:0,startY:0,scrollLeft:0,scrollTop:0});
+  const onMapDown = e => { const m=mapRef.current; dragRef.current={dragging:true,startX:e.clientX,startY:e.clientY,scrollLeft:m.scrollLeft,scrollTop:m.scrollTop}; m.style.cursor="grabbing"; };
+  const onMapMove = e => { const d=dragRef.current; if(!d.dragging) return; e.preventDefault(); const m=mapRef.current; m.scrollLeft=d.scrollLeft-(e.clientX-d.startX); m.scrollTop=d.scrollTop-(e.clientY-d.startY); };
+  const onMapUp   = () => { dragRef.current.dragging=false; if(mapRef.current) mapRef.current.style.cursor="grab"; };
 
   /* ── shared header ── */
   const Header = ({ title, tenant=false }) => (
@@ -145,7 +164,7 @@ export default function PropTEC() {
       </div>
       {tenant ? (
         <div style={{display:"flex",gap:4}}>
-          {[["buscar","Buscar"],["mis-res","Mis reservas"],["mis-pag","Mis pagos"]].map(([k,l])=>(
+          {[["buscar","Buscar"],["mis-res","Mis reservas"],["mi-cuenta","Mi cuenta"]].map(([k,l])=>(
             <button key={k} onClick={()=>setTenTab(k)}
               style={{padding:"4px 12px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
                 background:tenTab===k?C.green:"transparent",color:tenTab===k?"white":"#4A5568"}}>
@@ -215,7 +234,7 @@ export default function PropTEC() {
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
       <div style={{background:"white",borderRadius:14,boxShadow:"0 6px 28px rgba(0,0,0,.10)",display:"flex",overflow:"hidden",width:"min(760px,94vw)",minHeight:460}}>
         {/* Left */}
-        <div style={{flex:1,background:"linear-gradient(145deg,#1B3764 0%,#2D6A4F 100%)",padding:38,display:"flex",flexDirection:"column",justifyContent:"center",color:"white"}}>
+        <div style={{flex:1,background:`linear-gradient(145deg,rgba(27,55,100,0.82) 0%,rgba(45,106,79,0.82) 100%), url(${bgRepublica}) center/cover no-repeat`,padding:38,display:"flex",flexDirection:"column",justifyContent:"center",color:"white"}}>
           <div style={{fontSize:26,fontWeight:900,marginBottom:14,letterSpacing:"-1px"}}>Prop<span style={{color:C.greenB}}>TEC</span></div>
           <div style={{fontSize:17,fontWeight:700,marginBottom:14}}>Plataforma tipo PMS</div>
           <div style={{fontSize:12,lineHeight:1.85,color:"rgba(255,255,255,.85)"}}>
@@ -265,7 +284,7 @@ export default function PropTEC() {
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:C.bg,fontFamily:"system-ui,sans-serif"}}>
       <div style={{background:"white",borderRadius:14,boxShadow:"0 6px 28px rgba(0,0,0,.10)",display:"flex",overflow:"hidden",width:"min(760px,94vw)"}}>
         {/* Left */}
-        <div style={{flex:1,background:"linear-gradient(145deg,#1B3764 0%,#2D6A4F 100%)",padding:38,display:"flex",flexDirection:"column",justifyContent:"center",color:"white"}}>
+        <div style={{flex:1,background:`linear-gradient(145deg,rgba(27,55,100,0.82) 0%,rgba(45,106,79,0.82) 100%), url(${bgRepublica}) center/cover no-repeat`,padding:38,display:"flex",flexDirection:"column",justifyContent:"center",color:"white"}}>
           <div style={{fontSize:26,fontWeight:900,marginBottom:14,letterSpacing:"-1px"}}>Prop<span style={{color:C.greenB}}>TEC</span></div>
           <div style={{fontSize:17,fontWeight:700,marginBottom:14}}>Plataforma tipo PMS</div>
           <div style={{fontSize:12,lineHeight:1.85,color:"rgba(255,255,255,.85)"}}>
@@ -510,7 +529,7 @@ export default function PropTEC() {
                     {props.map((p,i)=>(
                       <tr key={p.id}>
                         <td style={td(i)}>
-                          <div style={{width:52,height:38,borderRadius:5,background:"linear-gradient(135deg,#667eea,#764ba2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🏙️</div>
+                          <img src={p.img} alt={p.name} style={{width:52,height:38,borderRadius:5,objectFit:"cover",display:"block"}}/>
                         </td>
                         <td style={{...td(i),fontWeight:600,color:"#2D3748"}}>{p.name}</td>
                         <td style={{...td(i),color:C.muted}}>{p.group}</td>
@@ -708,29 +727,35 @@ export default function PropTEC() {
         {/* BUSCAR */}
         {tenTab==="buscar" && (
           <div style={{display:"flex",height:"calc(100vh - 54px)"}}>
-            {/* Simulated map */}
+            {/* Mapa con drag-scroll */}
+            <style>{`[data-mapa]::-webkit-scrollbar{display:none}`}</style>
             <div style={{flex:1,position:"relative"}}>
-              <svg style={{position:"absolute",inset:0,width:"100%",height:"100%"}} viewBox="0 0 420 380" preserveAspectRatio="xMidYMid slice">
-                <rect width="420" height="380" fill="#ECF0E8"/>
-                {[40,80,120,160,200,240,280,320,360,400].map(x=><line key={`v${x}`} x1={x} y1={0} x2={x} y2={380} stroke="#DDE4D8" strokeWidth="1"/>)}
-                {[40,80,120,160,200,240,280,320,360].map(y=><line key={`h${y}`} x1={0} y1={y} x2={420} y2={y} stroke="#DDE4D8" strokeWidth="1"/>)}
-                <line x1={130} y1={0} x2={130} y2={380} stroke="#C8D0C0" strokeWidth="3"/>
-                <line x1={0} y1={160} x2={420} y2={160} stroke="#C8D0C0" strokeWidth="3"/>
-                <line x1={240} y1={0} x2={240} y2={380} stroke="#C8D0C0" strokeWidth="4"/>
-                <rect x={155} y={65} width={110} height={85} fill="#A8D5A2" rx={5}/>
-                <text x={210} y={112} textAnchor="middle" fontSize="10" fill="#276749" fontWeight="700">Parque La Carolina</text>
-                {[[180,55],[245,175],[152,205]].map(([x,y],i)=>(
-                  <g key={i} style={{cursor:"pointer"}}>
-                    <circle cx={x} cy={y} r="13" fill={C.red} stroke="white" strokeWidth="2.5"/>
-                    <text x={x} y={y+4} textAnchor="middle" fontSize="13" fill="white">⌂</text>
-                  </g>
-                ))}
-                <text x={15} y={164} fontSize="7" fill="#718096">Av. Naciones Unidas</text>
-                <text x={15} y={225} fontSize="7" fill="#718096">La Mariana de Jesús</text>
-                <text x={128} y={275} fontSize="7" fill="#718096" transform="rotate(-90,128,275)">Av. República</text>
-              </svg>
-              {/* Filtros bar */}
-              <div style={{position:"absolute",top:14,left:14,display:"flex",gap:8,zIndex:10}}>
+              <div ref={mapRef} data-mapa
+                onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseUp={onMapUp} onMouseLeave={onMapUp}
+                style={{position:"absolute",inset:0,overflow:"auto",cursor:"grab",userSelect:"none",scrollbarWidth:"none",msOverflowStyle:"none"}}>
+                <div style={{width:1920,height:1080,position:"relative"}}>
+                  <img src={imgMapa} alt="Mapa" draggable={false} style={{width:1920,height:1080,display:"block"}}/>
+
+                {/* Marcadores */}
+                {[
+                  {grupo:"República",  x:955, y:360},
+                  {grupo:"Inglaterra", x:895, y:620},
+                  {grupo:"Pradera",    x:860, y:740},
+                ].map(({grupo,x,y})=>{
+                  const activo = grupoFiltro === grupo;
+                  return (
+                    <div key={grupo}
+                      onClick={()=>setGrupoFiltro(activo ? null : grupo)}
+                      style={{position:"absolute",left:x,top:y,transform:"translate(-50%,-100%)",cursor:"pointer",zIndex:10}}>
+                      <MapPin size={60} fill={activo?C.navy:C.red} color="white" strokeWidth={1}/>
+                    </div>
+                  );
+                })}
+                </div>
+              </div>
+
+              {/* Barra de filtros */}
+              <div style={{position:"absolute",top:14,left:14,display:"flex",gap:8,zIndex:20}}>
                 <div style={{background:"white",borderRadius:8,boxShadow:"0 2px 8px rgba(0,0,0,.12)",display:"flex",alignItems:"center",padding:"7px 12px",gap:5,fontSize:12,cursor:"pointer"}}>
                   ⚙️ <span style={{fontWeight:600}}>Filtros</span> ▾
                 </div>
@@ -738,6 +763,7 @@ export default function PropTEC() {
                   🔍 Ingresa una dirección
                 </div>
               </div>
+
               {/* Zoom */}
               <div style={{position:"absolute",bottom:18,right:18,display:"flex",flexDirection:"column",background:"white",borderRadius:6,boxShadow:"0 2px 8px rgba(0,0,0,.12)"}}>
                 {["+","−"].map(z=>(
@@ -745,23 +771,40 @@ export default function PropTEC() {
                 ))}
               </div>
             </div>
+
             {/* Listings */}
-            <div style={{width:285,background:"#F0F2F5",overflowY:"auto",padding:14}}>
-              <div style={{fontWeight:700,fontSize:13,marginBottom:12,color:"#2D3748"}}>Propiedades disponibles</div>
-              {T_PROPS.map(p=>(
-                <div key={p.id}
-                  onClick={()=>{ setSelProp(p); setResvDone(false); setTenTab("detalle"); }}
-                  style={{background:"white",borderRadius:10,marginBottom:12,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,.08)"}}>
-                  <div style={{height:74,background:"linear-gradient(135deg,#667eea,#764ba2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>🛏️</div>
-                  <div style={{padding:10}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#2D3748",marginBottom:1}}>{p.name}</div>
-                    <div style={{fontSize:10,color:C.muted}}>{p.addr}</div>
-                    <div style={{fontSize:10,color:C.muted}}>{p.rooms} habitaciones</div>
-                    <div style={{fontSize:14,fontWeight:800,color:C.lav,marginTop:4}}>${p.price}<span style={{fontSize:9,fontWeight:400,color:C.muted}}>/noche</span></div>
+            {(()=>{
+              const lista = grupoFiltro ? T_PROPS.filter(p=>p.group===grupoFiltro) : T_PROPS;
+              return (
+                <div style={{width:285,background:"#F0F2F5",overflowY:"auto",padding:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <div style={{fontWeight:700,fontSize:13,color:"#2D3748"}}>{lista.length} propiedades disponibles</div>
+                    {grupoFiltro && (
+                      <button onClick={()=>setGrupoFiltro(null)}
+                        style={{fontSize:10,background:"#EDF2F7",border:"none",borderRadius:10,padding:"2px 8px",cursor:"pointer",color:"#4A5568",fontWeight:600}}>
+                        {grupoFiltro} ×
+                      </button>
+                    )}
                   </div>
+                  {lista.map(p=>(
+                    <div key={p.id}
+                      onClick={()=>{ setSelProp(p); setResvDone(false); setTenTab("detalle"); }}
+                      style={{background:"white",borderRadius:10,marginBottom:12,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,.08)"}}>
+                      <div style={{position:"relative"}}>
+                        <img src={p.img} alt={p.name} style={{width:"100%",height:74,objectFit:"cover",display:"block"}}/>
+                        <span style={{position:"absolute",top:6,left:6,background:"#38A169",color:"white",fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20}}>Disponible</span>
+                      </div>
+                      <div style={{padding:10}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#2D3748",marginBottom:1}}>{p.name}</div>
+                        <div style={{fontSize:10,color:C.muted}}>{p.addr}</div>
+                        <div style={{fontSize:10,color:C.muted}}>{p.rooms} habitaciones</div>
+                        <div style={{fontSize:14,fontWeight:800,color:C.lav,marginTop:4}}>${p.price}<span style={{fontSize:9,fontWeight:400,color:C.muted}}>/noche</span></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
         )}
 
@@ -770,7 +813,7 @@ export default function PropTEC() {
           <div style={{padding:24,maxWidth:680,margin:"0 auto"}}>
             <button onClick={()=>setTenTab("buscar")} style={{background:"none",border:"none",cursor:"pointer",color:C.lav,fontWeight:600,marginBottom:14,fontSize:12}}>← Volver</button>
             <div style={{background:"white",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 12px rgba(0,0,0,.08)"}}>
-              <div style={{height:190,background:"linear-gradient(135deg,#667eea,#764ba2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:55}}>🏢</div>
+              <img src={selProp.img} alt={selProp.name} style={{width:"100%",height:190,objectFit:"cover",display:"block"}}/>
               <div style={{padding:22}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
                   <div>
@@ -878,37 +921,57 @@ export default function PropTEC() {
         {tenTab==="mis-res" && (
           <div style={{padding:24,maxWidth:680,margin:"0 auto"}}>
             <div style={{fontWeight:800,fontSize:15,marginBottom:16}}>Mis Reservas</div>
-            {RESERVAS.slice(0,2).map((r,i)=>(
-              <div key={i} style={{...card,marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontWeight:700,fontSize:13,color:"#2D3748"}}>{r.prop}</div>
-                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>{r.entrada} → {r.salida} · {r.canal}</div>
+            {RESERVAS.slice(0,2).map((r,i)=>{
+              const pago = PAGOS.find(p=>p.res===r.id);
+              return (
+                <div key={i} style={{...card,marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:13,color:"#2D3748"}}>{r.prop}</div>
+                      <div style={{fontSize:11,color:C.muted,marginTop:2}}>{r.entrada} → {r.salida} · {r.canal}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <Badge text={r.estado}/>
+                      <div style={{fontWeight:700,marginTop:6,color:C.lav}}>${r.monto}</div>
+                    </div>
+                  </div>
+                  {pago && (
+                    <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #EDF2F7",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontSize:10,color:C.muted}}>💳 Pago · {pago.met} · {pago.fecha}</div>
+                      <Badge text={pago.estado}/>
+                    </div>
+                  )}
                 </div>
-                <div style={{textAlign:"right"}}>
-                  <Badge text={r.estado}/>
-                  <div style={{fontWeight:700,marginTop:6,color:C.lav}}>${r.monto}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* MIS PAGOS */}
-        {tenTab==="mis-pag" && (
+        {/* MI CUENTA */}
+        {tenTab==="mi-cuenta" && (
           <div style={{padding:24,maxWidth:680,margin:"0 auto"}}>
-            <div style={{fontWeight:800,fontSize:15,marginBottom:16}}>Mis Pagos</div>
-            {PAGOS.slice(0,2).map((p,i)=>(
-              <div key={i} style={{...card,marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontWeight:800,fontSize:15,marginBottom:16}}>Mi Cuenta</div>
+            <div style={{...card,marginBottom:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+                <div style={{width:52,height:52,borderRadius:"50%",background:C.navy,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:800,fontSize:18}}>A</div>
                 <div>
-                  <div style={{fontWeight:700,fontSize:13,color:"#2D3748"}}>{p.res}</div>
-                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>{p.fecha} · {p.met}</div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <Badge text={p.estado}/>
-                  <div style={{fontWeight:700,marginTop:6,color:C.lav}}>${p.monto}</div>
+                  <div style={{fontWeight:700,fontSize:14}}>Arrendatario Demo</div>
+                  <div style={{fontSize:11,color:C.muted}}>arrendatario@email.com</div>
                 </div>
               </div>
-            ))}
+              {[["Nombre completo","Arrendatario Demo"],["Correo electrónico","arrendatario@email.com"],["Teléfono","+593 99 000 0000"],["País","Ecuador"]].map(([label,val])=>(
+                <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #EDF2F7",fontSize:12}}>
+                  <span style={{color:C.muted}}>{label}</span>
+                  <span style={{fontWeight:600}}>{val}</span>
+                </div>
+              ))}
+              <div style={{marginTop:16,display:"flex",justifyContent:"flex-end"}}>
+                <button onClick={()=>setPage("login")}
+                  style={{padding:"7px 18px",background:C.red,color:"white",border:"none",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:600,display:"flex",alignItems:"center",gap:5}}>
+                  ⏻ Cerrar sesión
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
