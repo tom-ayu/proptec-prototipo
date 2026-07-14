@@ -44,10 +44,10 @@ const OCUP = [
   {m:"Ago",r:null,p:78},{m:"Sep",r:null,p:80},{m:"Oct",r:null,p:82},
 ];
 const RESERVAS = [
-  {id:"RES-001",prop:"Apto Carolina",  quien:"María García", entrada:"2026-07-15",salida:"2026-07-18",canal:"Directo",estado:"Confirmada",monto:105},
-  {id:"RES-002",prop:"Suite Norte",    quien:"Carlos Vega",  entrada:"2026-07-20",salida:"2026-07-25",canal:"Airbnb", estado:"Pendiente", monto:225},
-  {id:"RES-003",prop:"Piso Iñaquito",  quien:"Ana Torres",   entrada:"2026-07-22",salida:"2026-07-24",canal:"Booking",estado:"Confirmada",monto:110},
-  {id:"RES-004",prop:"Loft Mariscal",  quien:"Pedro Lema",   entrada:"2026-08-01",salida:"2026-08-05",canal:"Directo",estado:"Confirmada",monto:120},
+  {id:"RES-001",propId:1,prop:"Apto Carolina",  quien:"María García", entrada:"2026-07-15",salida:"2026-07-18",canal:"Directo", estado:"Confirmada",monto:105},
+  {id:"RES-002",propId:2,prop:"Suite Norte",    quien:"Carlos Vega",  entrada:"2026-07-20",salida:"2026-07-25",canal:"Airbnb",  estado:"Pendiente", monto:225},
+  {id:"RES-003",propId:3,prop:"Piso Iñaquito",  quien:"Ana Torres",   entrada:"2026-07-22",salida:"2026-07-24",canal:"Booking", estado:"Confirmada",monto:110},
+  {id:"RES-004",propId:4,prop:"Loft Mariscal",  quien:"Pedro Lema",   entrada:"2026-08-01",salida:"2026-08-05",canal:"Directo", estado:"Confirmada",monto:120},
 ];
 const PAGOS = [
   {id:"PAG-001",res:"RES-001",quien:"María García",monto:105,fecha:"2026-07-14",met:"Kushki",       estado:"Completado"},
@@ -150,6 +150,14 @@ export default function PropTEC() {
   const [regData,    setRegData]    = useState({tipo:"",nombre:"",apellido:"",email:"",pwd:"",pwd2:"",t1:false,t2:false});
   const [filtroEstado, setFiltroEstado] = useState("Todos los estados");
   const [mlDecisions, setMlDecisions] = useState({})
+  const [reservas, setReservas] = useState(RESERVAS);
+  const [calProp, setCalProp] = useState(1);
+  const [bloqueos, setBloqueos] = useState([
+    {propId:1, fecha:"2026-07-15"}, {propId:1, fecha:"2026-07-16"},
+    {propId:1, fecha:"2026-07-17"}, {propId:2, fecha:"2026-07-20"},
+  ]);
+  const [showBloqueo, setShowBloqueo] = useState(false);
+  const [nuevaFecha, setNuevaFecha] = useState("");
 
   const toggleProp = (id) => setProps(ps => ps.map(p => p.id===id ? {...p,on:!p.on} : p));
   const nights = () => resvForm.entrada&&resvForm.salida
@@ -160,6 +168,8 @@ export default function PropTEC() {
   const onMapDown = e => { const m=mapRef.current; dragRef.current={dragging:true,startX:e.clientX,startY:e.clientY,scrollLeft:m.scrollLeft,scrollTop:m.scrollTop}; m.style.cursor="grabbing"; };
   const onMapMove = e => { const d=dragRef.current; if(!d.dragging) return; e.preventDefault(); const m=mapRef.current; m.scrollLeft=d.scrollLeft-(e.clientX-d.startX); m.scrollTop=d.scrollTop-(e.clientY-d.startY); };
   const onMapUp   = () => { dragRef.current.dragging=false; if(mapRef.current) mapRef.current.style.cursor="grab"; };
+  const [filtroPropiedad, setFiltroPropiedad] = useState("Todas");
+  const [filtroPeriodo, setFiltroPeriodo] = useState("2026-07");
 
   /* ── shared header ── */
   const Header = ({ title, tenant=false }) => (
@@ -361,6 +371,23 @@ export default function PropTEC() {
           {/* ── DASHBOARD ── */}
           {manTab==="dashboard" && (
             <div style={{padding:20}}>
+              {/* Filtros */}
+              <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center"}}>
+                <div style={{fontSize:11,fontWeight:600,color:C.muted}}>Filtrar por:</div>
+                <select value={filtroPropiedad} onChange={e=>setFiltroPropiedad(e.target.value)}
+                  style={{padding:"5px 10px",border:"1px solid #CBD5E0",borderRadius:6,fontSize:11}}>
+                  <option value="Todas">Todas las propiedades</option>
+                  {INIT_PROPS.map(p=>(
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+                <input type="month" value={filtroPeriodo} onChange={e=>setFiltroPeriodo(e.target.value)}
+                  style={{padding:"5px 10px",border:"1px solid #CBD5E0",borderRadius:6,fontSize:11}}/>
+                <button onClick={()=>{setFiltroPropiedad("Todas");setFiltroPeriodo("2026-07");}}
+                  style={{padding:"5px 10px",background:"none",border:"1px solid #CBD5E0",borderRadius:6,fontSize:11,cursor:"pointer",color:C.muted}}>
+                  Limpiar filtros
+                </button>
+              </div>
               {/* KPIs */}
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
                 {[
@@ -574,13 +601,14 @@ export default function PropTEC() {
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead>
                     <tr style={{background:"#F7FAFC"}}>
-                      {["ID","Propiedad","Inquilino","Entrada","Salida","Canal","Estado","Monto"].map(h=>(
+                      {["ID","Propiedad","Inquilino","Entrada","Salida","Canal","Estado","Monto","Acciones"].map(h=>(
                         <th key={h} style={th}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {RESERVAS.filter(r=>filtroEstado==="Todos los estados"||r.estado===filtroEstado).map((r,i)=>(                      <tr key={r.id}>
+                    {reservas.filter(r=>filtroEstado==="Todos los estados"||r.estado===filtroEstado).map((r,i)=>(
+                      <tr key={r.id}>
                         <td style={{...td(i),color:C.lav,fontWeight:600,fontSize:11}}>{r.id}</td>
                         <td style={{...td(i),fontWeight:600,color:"#2D3748",fontSize:12}}>{r.prop}</td>
                         <td style={{...td(i),color:"#4A5568",fontSize:12}}>{r.quien}</td>
@@ -589,11 +617,88 @@ export default function PropTEC() {
                         <td style={td(i)}><span style={{background:"#EDF2F7",color:"#4A5568",padding:"1px 7px",borderRadius:9,fontSize:10,fontWeight:600}}>{r.canal}</span></td>
                         <td style={td(i)}><Badge text={r.estado}/></td>
                         <td style={{...td(i),fontWeight:700}}>${r.monto}</td>
+                        <td style={td(i)}>
+                          {r.estado==="Pendiente" && (
+                            <div style={{display:"flex",gap:5}}>
+                              <button onClick={()=>setReservas(rs=>rs.map(x=>x.id===r.id?{...x,estado:"Confirmada"}:x))}
+                                style={{padding:"3px 9px",background:"#F0FFF4",color:"#276749",border:"1px solid #C6F6D5",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                                Aprobar
+                              </button>
+                              <button onClick={()=>setReservas(rs=>rs.map(x=>x.id===r.id?{...x,estado:"Cancelada"}:x))}
+                                style={{padding:"3px 9px",background:"#FFF5F5",color:"#C53030",border:"1px solid #FED7D7",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                              Rechazar
+                              </button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              <div style={{...card, marginTop:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                  <div style={{fontWeight:700,fontSize:13}}>Calendario maestro de disponibilidad</div>
+                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                    <select value={calProp} onChange={e=>setCalProp(+e.target.value)}
+                      style={{padding:"4px 8px",border:"1px solid #CBD5E0",borderRadius:6,fontSize:11}}>
+                      {INIT_PROPS.map(p=>(
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <button onClick={()=>setShowBloqueo(!showBloqueo)}
+                      style={{padding:"4px 12px",background:C.navy,color:"white",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                      + Bloqueo manual
+                    </button>
+                  </div>
+                </div>
+                {showBloqueo && (
+                  <div style={{background:"#F7FAFC",borderRadius:8,padding:12,marginBottom:14,display:"flex",gap:10,alignItems:"flex-end"}}>
+                    <div>
+                      <label style={lbl}>Fecha a bloquear</label>
+                      <input type="date" value={nuevaFecha} onChange={e=>setNuevaFecha(e.target.value)} style={inp()}/>
+                    </div>
+                    <button onClick={()=>{
+                      if(nuevaFecha){ setBloqueos(bs=>[...bs,{propId:calProp,fecha:nuevaFecha}]); setNuevaFecha(""); setShowBloqueo(false); }
+                    }} style={{padding:"8px 14px",background:C.greenB,color:"white",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                      Confirmar
+                    </button>
+                    <button onClick={()=>setShowBloqueo(false)}
+                      style={{padding:"8px 14px",background:"none",color:C.muted,border:"none",fontSize:11,cursor:"pointer"}}>
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+                <div style={{fontWeight:600,fontSize:12,color:C.muted,marginBottom:8}}>Julio 2026</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+                  {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(d=>(
+                    <div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:C.muted,paddingBottom:6}}>{d}</div>
+                  ))}
+                  {Array.from({length:31},(_,i)=>{
+                    const dia = i+1;
+                    const fecha = `2026-07-${String(dia).padStart(2,"0")}`;
+                    const reserva = reservas.find(r=>r.propId===calProp&&r.entrada<=fecha&&r.salida>fecha&&r.estado==="Confirmada");
+                    const bloqueado = bloqueos.find(b=>b.propId===calProp&&b.fecha===fecha);
+                    const bg = reserva?"#BEE3F8":bloqueado?"#FED7D7":"#F7FAFC";
+                    const tc = reserva?"#2A4365":bloqueado?"#742A2A":"#4A5568";
+                    return (
+                      <div key={dia} style={{textAlign:"center",padding:"6px 2px",borderRadius:6,background:bg,fontSize:11,fontWeight:600,color:tc}}>
+                        {dia}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{display:"flex",gap:16,marginTop:12}}>
+                  {[["#BEE3F8","#2A4365","Reservada"],["#FED7D7","#742A2A","Bloqueada"],["#F7FAFC","#4A5568","Disponible"]].map(([bg,tc,l])=>(
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:tc}}>
+                      <div style={{width:12,height:12,borderRadius:3,background:bg,border:"1px solid #E2E8F0"}}/>
+                      {l}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -869,7 +974,7 @@ export default function PropTEC() {
                 <div style={{fontSize:64,marginBottom:24}}>✅</div>
                 <div style={{fontSize:20,fontWeight:800,color:"#276749",marginBottom:8}}>¡Reserva confirmada!</div>
                 <div style={{fontSize:12,color:C.muted,marginBottom:24}}>Tu reserva ha sido enviada al gestor. Recibirás un correo de confirmación.</div>
-                <button onClick={()=>{ setTenTab("buscar"); setResvForm({entrada:"",salida:"",nombre:"",email:""}); }}
+                <button onClick={()=>{ setTenTab("buscar"); setResvForm({entrada:"",salida:""}); }}
                   style={{padding:"10px 24px",background:C.greenB,color:"white",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer",fontSize:14}}>
                   Volver al inicio
                 </button>
