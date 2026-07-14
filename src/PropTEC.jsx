@@ -150,7 +150,6 @@ export default function PropTEC() {
   const [regData,    setRegData]    = useState({tipo:"",nombre:"",apellido:"",email:"",pwd:"",pwd2:"",t1:false,t2:false});
   const [filtroEstado, setFiltroEstado] = useState("Todos los estados");
   const [mlDecisions, setMlDecisions] = useState({})
-  const [reservas, setReservas] = useState(RESERVAS);
   const [calProp, setCalProp] = useState(1);
   const [bloqueos, setBloqueos] = useState([
     {propId:1, fecha:"2026-07-15"}, {propId:1, fecha:"2026-07-16"},
@@ -601,13 +600,13 @@ export default function PropTEC() {
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead>
                     <tr style={{background:"#F7FAFC"}}>
-                      {["ID","Propiedad","Inquilino","Entrada","Salida","Canal","Estado","Monto","Acciones"].map(h=>(
+                      {["ID","Propiedad","Inquilino","Entrada","Salida","Canal","Estado","Monto"].map(h=>(
                         <th key={h} style={th}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {reservas.filter(r=>filtroEstado==="Todos los estados"||r.estado===filtroEstado).map((r,i)=>(
+                    {RESERVAS.filter(r=>filtroEstado==="Todos los estados"||r.estado===filtroEstado).map((r,i)=>(
                       <tr key={r.id}>
                         <td style={{...td(i),color:C.lav,fontWeight:600,fontSize:11}}>{r.id}</td>
                         <td style={{...td(i),fontWeight:600,color:"#2D3748",fontSize:12}}>{r.prop}</td>
@@ -617,20 +616,6 @@ export default function PropTEC() {
                         <td style={td(i)}><span style={{background:"#EDF2F7",color:"#4A5568",padding:"1px 7px",borderRadius:9,fontSize:10,fontWeight:600}}>{r.canal}</span></td>
                         <td style={td(i)}><Badge text={r.estado}/></td>
                         <td style={{...td(i),fontWeight:700}}>${r.monto}</td>
-                        <td style={td(i)}>
-                          {r.estado==="Pendiente" && (
-                            <div style={{display:"flex",gap:5}}>
-                              <button onClick={()=>setReservas(rs=>rs.map(x=>x.id===r.id?{...x,estado:"Confirmada"}:x))}
-                                style={{padding:"3px 9px",background:"#F0FFF4",color:"#276749",border:"1px solid #C6F6D5",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
-                                Aprobar
-                              </button>
-                              <button onClick={()=>setReservas(rs=>rs.map(x=>x.id===r.id?{...x,estado:"Cancelada"}:x))}
-                                style={{padding:"3px 9px",background:"#FFF5F5",color:"#C53030",border:"1px solid #FED7D7",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
-                              Rechazar
-                              </button>
-                            </div>
-                          )}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -678,7 +663,7 @@ export default function PropTEC() {
                   {Array.from({length:31},(_,i)=>{
                     const dia = i+1;
                     const fecha = `2026-07-${String(dia).padStart(2,"0")}`;
-                    const reserva = reservas.find(r=>r.propId===calProp&&r.entrada<=fecha&&r.salida>fecha&&r.estado==="Confirmada");
+                    const reserva = RESERVAS.find(r=>r.propId===calProp&&r.entrada<=fecha&&r.salida>fecha&&r.estado==="Confirmada");
                     const bloqueado = bloqueos.find(b=>b.propId===calProp&&b.fecha===fecha);
                     const bg = reserva?"#BEE3F8":bloqueado?"#FED7D7":"#F7FAFC";
                     const tc = reserva?"#2A4365":bloqueado?"#742A2A":"#4A5568";
