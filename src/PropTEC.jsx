@@ -35,7 +35,6 @@ const INIT_PROPS = [
   { id:6, name:"Piso Alto Pradera",          group:"Pradera",    price:44, rooms:2, on:true,  img:imgP2 },
 ];
 
-const CANAL   = [{ name:"OTA", value:55 }, { name:"Directo", value:45 }];
 const REVENUE = [
   {m:"Ene",v:2800},{m:"Feb",v:3200},{m:"Mar",v:2900},
   {m:"Abr",v:3800},{m:"May",v:4100},{m:"Jun",v:3600},{m:"Jul",v:4400},
@@ -76,6 +75,10 @@ const NOTIFS = [
   {id:2,t:"Pago recibido: $105 – RES-001",   s:"hace 1 hora",                r:false},
   {id:3,t:"ML: precio sugerido actualizado", s:"hace 3 horas",               r:true},
 ];
+const MIS_RESERVAS = [
+  {id:"RES-005",prop:"Apartamento en la Carolina",entrada:"2026-07-20",salida:"2026-07-23",canal:"Directo",estado:"Confirmada",monto:108},
+  {id:"RES-006",prop:"Suite Ejecutiva República",  entrada:"2026-08-05",salida:"2026-08-07",canal:"Directo",estado:"Pendiente", monto:99},
+]
 
 /* ─── UTILS ──────────────────────────────────────────────────── */
 function Gauge({ value, max = 100 }) {
@@ -84,16 +87,16 @@ function Gauge({ value, max = 100 }) {
   const vx = cx + r * Math.cos(a),  vy = cy - r * Math.sin(a);
   const nx = cx + (r-18)*Math.cos(a), ny = cy - (r-18)*Math.sin(a);
   return (
-    <svg viewBox="0 0 200 108" style={{ width:"100%", maxWidth:220 }}>
+    <svg viewBox="0 0 200 120" style={{ width:"100%", maxWidth:220 }}>
       <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`}
         fill="none" stroke="#E2E8F0" strokeWidth="13" strokeLinecap="round"/>
       <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${vx} ${vy}`}
         fill="none" stroke={C.lav} strokeWidth="13" strokeLinecap="round"/>
       <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#4A5568" strokeWidth="2.5" strokeLinecap="round"/>
       <circle cx={cx} cy={cy} r="5" fill="#4A5568"/>
-      <text x={cx-r-4} y={cy+10} fontSize="8" fill={C.muted} textAnchor="middle">0</text>
-      <text x={cx+r+4} y={cy+10} fontSize="8" fill={C.muted} textAnchor="middle">100</text>
-      <text x={cx} y={cy+22} textAnchor="middle" fontSize="22" fontWeight="bold" fill="#1A202C">{value}</text>
+      <text x={cx-r-4} y={cy+22} fontSize="8" fill={C.muted} textAnchor="middle">0</text>
+      <text x={cx+r+4} y={cy+22} fontSize="8" fill={C.muted} textAnchor="middle">100</text>
+      <text x={cx} y={cy+28} textAnchor="middle" fontSize="18" fontWeight="bold" fill="#1A202C">{value}%</text>
     </svg>
   );
 }
@@ -142,9 +145,11 @@ export default function PropTEC() {
   const [resvDone,   setResvDone]   = useState(false);
   const [loginRole,  setLoginRole]  = useState("gestor");
   const [newProp,    setNewProp]    = useState({name:"",group:"",price:"",rooms:"",amenities:[]});
-  const [resvForm,   setResvForm]   = useState({entrada:"",salida:"",nombre:"",email:""});
+  const [resvForm,   setResvForm]   = useState({entrada:"", salida:""});
   const [grupoFiltro, setGrupoFiltro] = useState(null);
   const [regData,    setRegData]    = useState({tipo:"",nombre:"",apellido:"",email:"",pwd:"",pwd2:"",t1:false,t2:false});
+  const [filtroEstado, setFiltroEstado] = useState("Todos los estados");
+  const [mlDecisions, setMlDecisions] = useState({})
 
   const toggleProp = (id) => setProps(ps => ps.map(p => p.id===id ? {...p,on:!p.on} : p));
   const nights = () => resvForm.entrada&&resvForm.salida
@@ -359,10 +364,10 @@ export default function PropTEC() {
               {/* KPIs */}
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
                 {[
-                  {l:"Propiedades activas",v:"3",s:"de 5 totales",ic:"🏠",bg:"#EBF8FF"},
+                  {l:"Propiedades activas", v:`${props.filter(p=>p.on).length}`, s:`de ${props.length} totales`, ic:"🏠", bg:"#EBF8FF"},
                   {l:"Ocupación promedio",  v:"76%",s:"↑ 4% este mes",ic:"📊",bg:"#F0FFF4"},
                   {l:"Ingresos del mes",    v:"$4,400",s:"↑ 22% vs jun",ic:"💰",bg:"#FFFBEB"},
-                  {l:"Reservas activas",   v:"4",s:"2 pendientes",ic:"📅",bg:"#FFF5F5"},
+                  {l:"Reservas activas", v:`${RESERVAS.length}`, s:`${RESERVAS.filter(r=>r.estado==="Pendiente").length} pendientes`, ic:"📅", bg:"#FFF5F5"},
                 ].map((k,i)=>(
                   <div key={i} style={{...card,padding:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
@@ -401,23 +406,30 @@ export default function PropTEC() {
                   </div>
                   <ResponsiveContainer width="100%" height={175}>
                     <PieChart>
-                      <Pie data={CANAL} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({name,value})=>`${name}: ${value}%`} labelLine={false}>
+                      <Pie
+                        data={[
+                          { name:"OTA",     value: RESERVAS.filter(r=>r.canal!=="Directo").length },
+                          { name:"Directo", value: RESERVAS.filter(r=>r.canal==="Directo").length },
+                        ]}
+                        cx="50%" cy="50%" outerRadius={70} dataKey="value"
+                        label={false} labelLine={false}>
                         <Cell fill={C.salmon}/><Cell fill={C.lav}/>
                       </Pie>
-                      <Tooltip formatter={v=>`${v}%`}/>
+                      <Tooltip formatter={v=>`${v} reservas`}/>
                     </PieChart>
                   </ResponsiveContainer>
-                  <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:4}}>
-                    {[["OTA",C.salmon],["Directo",C.lav]].map(([l,col])=>(
-                      <div key={l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:C.muted}}>
+                  <div style={{display:"flex",justifyContent:"center",gap:24,marginTop:8,flexWrap:"wrap"}}>
+                    {[["OTA",C.salmon,RESERVAS.filter(r=>r.canal!=="Directo").length],["Directo",C.lav,RESERVAS.filter(r=>r.canal==="Directo").length]].map(([l,col,v])=>(
+                      <div key={l} style={{display:"flex",alignItems:"center",gap:6,fontSize:12}}>
                         <div style={{width:10,height:10,borderRadius:2,background:col}}/>
-                        {l}
+                        <span style={{color:C.muted}}>{l}:</span>
+                        <span style={{fontWeight:700}}>{v} reservas</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 {/* Gauge */}
-                <div style={{...card,display:"flex",flexDirection:"column",alignItems:"center"}}>
+                <div style={{...card,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
                   <div style={{fontWeight:700,fontSize:13,alignSelf:"flex-start",marginBottom:4}}>Ocupación promedio</div>
                   <Gauge value={76}/>
                 </div>
@@ -553,7 +565,8 @@ export default function PropTEC() {
                   <div style={{fontWeight:800,fontSize:15}}>Reservas</div>
                   <div style={{fontSize:11,color:C.muted}}>Gestiona las reservas de tus propiedades</div>
                 </div>
-                <select style={{padding:"5px 10px",border:"1px solid #CBD5E0",borderRadius:6,fontSize:11}}>
+                <select value={filtroEstado} onChange={e=>setFiltroEstado(e.target.value)}
+                  style={{padding:"5px 10px",border:"1px solid #CBD5E0",borderRadius:6,fontSize:11}}>
                   <option>Todos los estados</option><option>Confirmada</option><option>Pendiente</option><option>Cancelada</option>
                 </select>
               </div>
@@ -567,8 +580,7 @@ export default function PropTEC() {
                     </tr>
                   </thead>
                   <tbody>
-                    {RESERVAS.map((r,i)=>(
-                      <tr key={r.id}>
+                    {RESERVAS.filter(r=>filtroEstado==="Todos los estados"||r.estado===filtroEstado).map((r,i)=>(                      <tr key={r.id}>
                         <td style={{...td(i),color:C.lav,fontWeight:600,fontSize:11}}>{r.id}</td>
                         <td style={{...td(i),fontWeight:600,color:"#2D3748",fontSize:12}}>{r.prop}</td>
                         <td style={{...td(i),color:"#4A5568",fontSize:12}}>{r.quien}</td>
@@ -638,10 +650,10 @@ export default function PropTEC() {
                 <div style={card}>
                   <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:3}}>
                     <span style={{fontSize:16}}>🤖</span>
-                    <div style={{fontWeight:700,fontSize:13}}>Precios Dinámicos (LightGBM)</div>
+                    <div style={{fontWeight:700,fontSize:13}}>Sugerencias de Precio</div>
                   </div>
                   <div style={{fontSize:10,color:C.muted,marginBottom:12}}>Sugerencias basadas en demanda y competencia</div>
-                  {ML.map((m,i)=>(
+                  {ML.filter(m=>m.act!==m.sug).map((m,i)=>(
                     <div key={i} style={{borderBottom:"1px solid #F7FAFC",padding:"8px 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                       <div style={{flex:1}}>
                         <div style={{fontSize:11,fontWeight:600,color:"#2D3748"}}>{m.prop}</div>
@@ -652,7 +664,22 @@ export default function PropTEC() {
                       </div>
                       <div style={{display:"flex",gap:6,alignItems:"center"}}>
                         <Badge text={m.dem}/>
-                        <span style={{fontSize:14,fontWeight:700,color:m.t==="↑"?"#276749":m.t==="↓"?C.red:C.muted}}>{m.t}</span>
+                        {mlDecisions[m.prop] ? (
+                          <span style={{fontSize:10,fontWeight:600,color:mlDecisions[m.prop]==="aceptada"?"#276749":C.muted}}>
+                            {mlDecisions[m.prop]==="aceptada" ? "✓ Aceptada" : "Ignorada"}
+                          </span>
+                        ) : (
+                          <div style={{display:"flex",gap:5}}>
+                            <button onClick={()=>setMlDecisions({...mlDecisions,[m.prop]:"aceptada"})}
+                              style={{padding:"3px 9px",background:"#F0FFF4",color:"#276749",border:"1px solid #C6F6D5",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                              Aceptar
+                            </button>
+                            <button onClick={()=>setMlDecisions({...mlDecisions,[m.prop]:"ignorada"})}
+                              style={{padding:"3px 9px",background:"#EDF2F7",color:"#718096",border:"none",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                              Ignorar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -661,7 +688,7 @@ export default function PropTEC() {
                 <div style={card}>
                   <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:3}}>
                     <span style={{fontSize:16}}>📈</span>
-                    <div style={{fontWeight:700,fontSize:13}}>Predicción de Ocupación (Prophet)</div>
+                    <div style={{fontWeight:700,fontSize:13}}>Predicción de Ocupación</div>
                   </div>
                   <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Forecast próximos 3 meses</div>
                   <ResponsiveContainer width="100%" height={205}>
@@ -686,28 +713,6 @@ export default function PropTEC() {
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-              {/* Precio óptimo */}
-              <div style={card}>
-                <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:3}}>
-                  <span style={{fontSize:16}}>💡</span>
-                  <div style={{fontWeight:700,fontSize:13}}>Indicador de Precio Óptimo para Arrendatarios</div>
-                </div>
-                <div style={{fontSize:10,color:C.muted,marginBottom:14}}>Basado en historial de demanda y estacionalidad</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-                  {[
-                    {per:"Próxima semana",price:"$38",lvl:"Moderado",bg:"#FFFBEB",tc:"#744210",msg:"Buen momento para reservar si hay disponibilidad."},
-                    {per:"Quincena",       price:"$45",lvl:"Alto",    bg:"#FFF5F5",tc:"#742A2A",msg:"Demanda alta. Se recomienda reservar con anticipación."},
-                    {per:"Mes siguiente", price:"$32",lvl:"Bajo",    bg:"#F0FFF4",tc:"#22543D",msg:"Excelente momento para reservar. Precio bajo."},
-                  ].map((p,i)=>(
-                    <div key={i} style={{background:p.bg,borderRadius:8,padding:12}}>
-                      <div style={{fontSize:10,color:C.muted,fontWeight:600,marginBottom:3}}>{p.per}</div>
-                      <div style={{fontSize:22,fontWeight:800,color:p.tc}}>{p.price}<span style={{fontSize:10,fontWeight:400,color:C.muted}}>/noche</span></div>
-                      <div style={{fontSize:10,fontWeight:600,color:p.tc,marginTop:2}}>{p.lvl}</div>
-                      <div style={{fontSize:10,color:C.muted,marginTop:5,lineHeight:1.45}}>{p.msg}</div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
@@ -813,16 +818,22 @@ export default function PropTEC() {
           <div style={{padding:24,maxWidth:680,margin:"0 auto"}}>
             <button onClick={()=>setTenTab("buscar")} style={{background:"none",border:"none",cursor:"pointer",color:C.lav,fontWeight:600,marginBottom:14,fontSize:12}}>← Volver</button>
             <div style={{background:"white",borderRadius:12,overflow:"hidden",boxShadow:"0 2px 12px rgba(0,0,0,.08)"}}>
-              <img src={selProp.img} alt={selProp.name} style={{width:"100%",height:190,objectFit:"cover",display:"block"}}/>
-              <div style={{padding:22}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-                  <div>
-                    <div style={{fontSize:18,fontWeight:800}}>{selProp.name}</div>
-                    <div style={{fontSize:12,color:C.muted,marginTop:3}}>📍 {selProp.addr}</div>
+              <div style={{position:"relative"}}>
+                <img src={selProp.img} alt={selProp.name} style={{width:"100%",height:260,objectFit:"cover",display:"block"}}/>
+                <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"40px 22px 16px",background:"linear-gradient(transparent,rgba(0,0,0,0.65))",display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
+                  <span style={{background:"#38A169",color:"white",fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,display:"inline-block"}}>
+                    💡 Buen momento para reservar
+                  </span>
+                  <div style={{background:"rgba(27,55,100,0.85)",color:"white",fontSize:22,fontWeight:800,padding:"4px 12px",borderRadius:8}}>
+                    ${selProp.price}<span style={{fontSize:11,fontWeight:400}}>/noche</span>
                   </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:24,fontWeight:800,color:C.lav}}>${selProp.price}</div>
-                    <div style={{fontSize:10,color:C.muted}}>por noche</div>
+                </div>
+              </div>
+              <div style={{padding:22}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:14}}>
+                  <div>
+                    <div style={{fontSize:18,fontWeight:800,textAlign:"center"}}>{selProp.name}</div>
+                    <div style={{fontSize:12,color:C.muted,marginTop:3}}>📍 {selProp.addr}</div>
                   </div>
                 </div>
                 <div style={{display:"flex",gap:10,marginBottom:16}}>
@@ -834,12 +845,12 @@ export default function PropTEC() {
                   <div style={{fontWeight:700,fontSize:12,marginBottom:6}}>Descripción</div>
                   <div style={{fontSize:12,color:"#4A5568",lineHeight:1.65}}>Amplio espacio en el sector de La Carolina, norte de Quito. Excelentes acabados y acceso completo a servicios básicos. Ideal para estadías cortas o largas.</div>
                 </div>
-                <div style={{background:"#F0FFF4",borderRadius:8,padding:12,marginBottom:18,border:"1px solid #C6F6D5"}}>
-                  <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
-                    <span>💡</span>
-                    <div style={{fontWeight:700,fontSize:11,color:"#276749"}}>Indicador de Precio Óptimo</div>
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:"1px solid #EDF2F7",borderBottom:"1px solid #EDF2F7",marginBottom:16}}>
+                  <span style={{fontSize:20}}>💡</span>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#276749"}}>Precio por debajo del promedio histórico</div>
+                    <div style={{fontSize:10,color:C.muted}}>Promedio zona: $42/noche · Tendencia: estable</div>
                   </div>
-                  <div style={{fontSize:11,color:"#276749"}}>El precio actual <strong>(${selProp.price}/noche)</strong> está por debajo del promedio de la zona. <strong>Buen momento para reservar.</strong></div>
                 </div>
                 <button onClick={()=>{ setResvDone(false); setTenTab("reservar"); }}
                   style={{width:"100%",padding:"13px",background:C.greenB,color:"white",border:"none",borderRadius:9,fontWeight:700,cursor:"pointer",fontSize:14}}>
@@ -855,7 +866,7 @@ export default function PropTEC() {
           <div style={{padding:24,maxWidth:480,margin:"0 auto"}}>
             {resvDone ? (
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:400,textAlign:"center"}}>
-                <div style={{fontSize:64,marginBottom:14}}>✅</div>
+                <div style={{fontSize:64,marginBottom:24}}>✅</div>
                 <div style={{fontSize:20,fontWeight:800,color:"#276749",marginBottom:8}}>¡Reserva confirmada!</div>
                 <div style={{fontSize:12,color:C.muted,marginBottom:24}}>Tu reserva ha sido enviada al gestor. Recibirás un correo de confirmación.</div>
                 <button onClick={()=>{ setTenTab("buscar"); setResvForm({entrada:"",salida:"",nombre:"",email:""}); }}
@@ -878,10 +889,11 @@ export default function PropTEC() {
                       <input type="date" value={resvForm.salida} onChange={e=>setResvForm({...resvForm,salida:e.target.value})} style={inp()}/>
                     </div>
                   </div>
-                  <label style={lbl}>Nombre completo</label>
-                  <input value={resvForm.nombre} onChange={e=>setResvForm({...resvForm,nombre:e.target.value})} placeholder="Tu nombre" style={{...inp(),marginBottom:10}}/>
-                  <label style={lbl}>Correo electrónico</label>
-                  <input value={resvForm.email} onChange={e=>setResvForm({...resvForm,email:e.target.value})} placeholder="correo@ejemplo.com" style={{...inp(),marginBottom:16}}/>
+                  <div style={{background:"#F7FAFC",borderRadius:8,padding:12,marginBottom:12}}>
+                    <div style={{fontSize:10,color:C.muted,fontWeight:600,marginBottom:4}}>Reservando como</div>
+                    <div style={{fontSize:12,fontWeight:700}}>Arrendatario Demo</div>
+                    <div style={{fontSize:11,color:C.muted}}>arrendatario@email.com</div>
+                  </div>
 
                   {/* Summary */}
                   <div style={{background:"#F7FAFC",borderRadius:8,padding:12,marginBottom:16}}>
@@ -921,13 +933,13 @@ export default function PropTEC() {
         {tenTab==="mis-res" && (
           <div style={{padding:24,maxWidth:680,margin:"0 auto"}}>
             <div style={{fontWeight:800,fontSize:15,marginBottom:16}}>Mis Reservas</div>
-            {RESERVAS.slice(0,2).map((r,i)=>{
-              const pago = PAGOS.find(p=>p.res===r.id);
+            {MIS_RESERVAS.map((r,i)=>{
+              const pago = undefined;
               return (
                 <div key={i} style={{...card,marginBottom:12}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
-                      <div style={{fontWeight:700,fontSize:13,color:"#2D3748"}}>{r.prop}</div>
+                      <div style={{fontWeight:700,fontSize:13,color:"#2D3748",marginBottom:4}}>{r.prop}</div>
                       <div style={{fontSize:11,color:C.muted,marginTop:2}}>{r.entrada} → {r.salida} · {r.canal}</div>
                     </div>
                     <div style={{textAlign:"right"}}>
