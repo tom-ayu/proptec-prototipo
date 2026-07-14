@@ -158,6 +158,8 @@ export default function PropTEC() {
   ]);
   const [showBloqueo, setShowBloqueo] = useState(false);
   const [nuevaFecha, setNuevaFecha] = useState("");
+  const [showFiltros, setShowFiltros] = useState(false);
+  const [precioMax, setPrecioMax] = useState(100);
 
   const toggleProp = (id) => setProps(ps => ps.map(p => p.id===id ? {...p,on:!p.on} : p));
   const nights = () => resvForm.entrada&&resvForm.salida
@@ -389,10 +391,9 @@ export default function PropTEC() {
                 </button>
               </div>
               {/* KPIs */}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:18}}>
                 {[
                   {l:"Propiedades activas", v:`${props.filter(p=>p.on).length}`, s:`de ${props.length} totales`, ic:"🏠", bg:"#EBF8FF"},
-                  {l:"Ocupación promedio",  v:"76%",s:"↑ 4% este mes",ic:"📊",bg:"#F0FFF4"},
                   {l:"Ingresos del mes",    v:"$4,400",s:"↑ 22% vs jun",ic:"💰",bg:"#FFFBEB"},
                   {l:"Reservas activas", v:`${RESERVAS.length}`, s:`${RESERVAS.filter(r=>r.estado==="Pendiente").length} pendientes`, ic:"📅", bg:"#FFF5F5"},
                 ].map((k,i)=>(
@@ -459,6 +460,7 @@ export default function PropTEC() {
                 <div style={{...card,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
                   <div style={{fontWeight:700,fontSize:13,alignSelf:"flex-start",marginBottom:4}}>Ocupación promedio</div>
                   <Gauge value={76}/>
+                  <div style={{fontSize:11,color:"#276749",fontWeight:600,marginTop:4}}>↑ 4% vs mes anterior</div>
                 </div>
               </div>
               {/* Revenue */}
@@ -866,8 +868,39 @@ export default function PropTEC() {
 
               {/* Barra de filtros */}
               <div style={{position:"absolute",top:14,left:14,display:"flex",gap:8,zIndex:20}}>
-                <div style={{background:"white",borderRadius:8,boxShadow:"0 2px 8px rgba(0,0,0,.12)",display:"flex",alignItems:"center",padding:"7px 12px",gap:5,fontSize:12,cursor:"pointer"}}>
+                <div onClick={()=>setShowFiltros(!showFiltros)}
+                  style={{background:"white",borderRadius:8,boxShadow:"0 2px 8px rgba(0,0,0,.12)",display:"flex",alignItems:"center",padding:"7px 12px",gap:5,fontSize:12,cursor:"pointer"}}>
                   ⚙️ <span style={{fontWeight:600}}>Filtros</span> ▾
+                  {showFiltros && (
+                    <div onClick={e=>e.stopPropagation()}
+                      style={{position:"absolute",top:48,left:0,background:"white",borderRadius:8,boxShadow:"0 4px 16px rgba(0,0,0,.12)",padding:16,zIndex:50,minWidth:260}}>
+                      <div style={{fontWeight:700,fontSize:12,marginBottom:10}}>Filtrar propiedades</div>
+                      <label style={lbl}>Precio máximo/noche (USD)</label>
+                      <input type="range" min={20} max={100} value={precioMax}
+                        onChange={e=>setPrecioMax(+e.target.value)}
+                        style={{width:"100%",marginBottom:4}}/>
+                      <div style={{fontSize:10,color:C.muted,marginBottom:10,textAlign:"right"}}>
+                        Máximo: <strong>${precioMax}/noche</strong>
+                      </div>
+                      <label style={lbl}>Habitaciones</label>
+                      <select style={{...inp(),marginBottom:10}}>
+                        <option>Cualquiera</option>
+                        <option>1 habitación</option>
+                        <option>2 habitaciones</option>
+                      </select>
+                      <label style={lbl}>Servicios</label>
+                      <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
+                        {["WiFi","Cocina","Parqueadero"].map(s=>(
+                          <label key={s} style={{display:"flex",alignItems:"center",gap:4,fontSize:11,cursor:"pointer"}}>
+                            <input type="checkbox"/>{s}
+                          </label>
+                        ))}
+                      </div>
+                      <button style={{width:"100%",padding:"7px",background:C.navy,color:"white",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                        Aplicar filtros
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div style={{background:"white",borderRadius:8,boxShadow:"0 2px 8px rgba(0,0,0,.12)",display:"flex",alignItems:"center",padding:"7px 130px 7px 10px",gap:5,fontSize:12,color:C.muted}}>
                   🔍 Ingresa una dirección
