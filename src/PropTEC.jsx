@@ -144,6 +144,7 @@ export default function PropTEC() {
   const [selProp,    setSelProp]    = useState(null);
   const [resvDone,   setResvDone]   = useState(false);
   const [loginRole,  setLoginRole]  = useState("gestor");
+  const [loginEmail, setLoginEmail] = useState("");
   const [newProp,    setNewProp]    = useState({name:"",group:"",price:"",rooms:"",amenities:[]});
   const [resvForm,   setResvForm]   = useState({entrada:"", salida:""});
   const [grupoFiltro, setGrupoFiltro] = useState(null);
@@ -268,19 +269,13 @@ export default function PropTEC() {
           <div style={{fontSize:19,fontWeight:800,marginBottom:2}}>Bienvenido a <strong>PropTEC</strong></div>
           <div style={{color:C.muted,fontSize:12,marginBottom:22}}>Inicia sesión para continuar</div>
 
-          <label style={lbl}>Tipo de usuario</label>
-          <select value={loginRole} onChange={e=>setLoginRole(e.target.value)} style={{...inp(),marginBottom:13}}>
-            <option value="gestor">Gestor</option>
-            <option value="arrendatario">Arrendatario</option>
-          </select>
-
           <label style={lbl}>Correo electrónico</label>
-          <input placeholder="correo@ejemplo.com" style={{...inp(),marginBottom:13}}/>
+          <input value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} placeholder="correo@ejemplo.com" style={{...inp(),marginBottom:13}}/>
 
           <label style={lbl}>Contraseña</label>
           <input type="password" placeholder="••••••••" style={{...inp(),marginBottom:22}}/>
 
-          <button onClick={()=>setPage(loginRole==="gestor"?"manager":"tenant")}
+          <button onClick={()=>setPage(loginEmail.toLowerCase().includes("gestor")?"manager":"tenant")}
             style={{width:"100%",padding:"11px",background:C.greenB,color:"white",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer",fontSize:14,marginBottom:10}}>
             Iniciar Sesión
           </button>
@@ -315,34 +310,19 @@ export default function PropTEC() {
           <div style={{fontSize:19,fontWeight:800,marginBottom:2}}>Bienvenido a <strong>PropTEC</strong></div>
           <div style={{color:C.muted,fontSize:12,marginBottom:16}}>¡Regístrate!</div>
 
-          <select value={regData.tipo} onChange={e=>setRegData({...regData,tipo:e.target.value})} style={{...inp(),marginBottom:13}}>
-            <option value="">Tipo de usuario</option>
-            <option value="gestor">Gestor</option>
-            <option value="arrendatario">Arrendatario</option>
-          </select>
-
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-            {[["nombre","Nombre"],["apellido","Apellido"]].map(([k,l])=>(
-              <div key={k}><label style={lbl}>{l}</label>
-                <input value={regData[k]} onChange={e=>setRegData({...regData,[k]:e.target.value})} style={inp()}/>
-              </div>
-            ))}
+          <div style={{marginBottom:10}}>
+            <label style={lbl}>Nombre completo</label>
+            <input value={regData.nombre} onChange={e=>setRegData({...regData,nombre:e.target.value})} style={inp()}/>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-            <div><label style={lbl}>Dirección e-mail</label>
-              <input value={regData.email} onChange={e=>setRegData({...regData,email:e.target.value})} style={inp()}/>
-            </div>
-            <div><label style={lbl}>Contraseña</label>
-              <input type="password" value={regData.pwd} onChange={e=>setRegData({...regData,pwd:e.target.value})} style={inp()}/>
-            </div>
+          <div style={{marginBottom:16}}>
+            <label style={lbl}>Dirección e-mail</label>
+            <input value={regData.email} onChange={e=>setRegData({...regData,email:e.target.value})} style={inp()}/>
           </div>
-          <label style={lbl}>Confirmar contraseña</label>
-          <input type="password" value={regData.pwd2} onChange={e=>setRegData({...regData,pwd2:e.target.value})} style={{...inp(),marginBottom:13}}/>
 
           {[["t1","Acepto el Acuerdo de Protección de Datos Personales"],["t2","He leído las Condiciones de uso y Política de privacidad"]].map(([k,l])=>(
-            <label key={k} style={{display:"flex",alignItems:"flex-start",gap:7,fontSize:11,color:"#4A5568",marginBottom:8,cursor:"pointer"}}>
-              <input type="checkbox" checked={regData[k]} onChange={e=>setRegData({...regData,[k]:e.target.checked})} style={{marginTop:2}}/>
-              <span style={{color:C.lav,fontWeight:600}}>{l}</span>
+            <label key={k} style={{display:"flex",alignItems:"flex-start",justifyContent:"flex-start",textAlign:"left",gap:8,fontSize:11,color:"#4A5568",marginBottom:8,cursor:"pointer",width:"100%"}}>
+              <input type="checkbox" checked={regData[k]} onChange={e=>setRegData({...regData,[k]:e.target.checked})} style={{marginTop:2,width:"auto",flexShrink:0}}/>
+              <span style={{color:C.lav,fontWeight:600,textAlign:"left"}}>{l}</span>
             </label>
           ))}
 
@@ -944,9 +924,13 @@ export default function PropTEC() {
               <div style={{position:"relative"}}>
                 <img src={selProp.img} alt={selProp.name} style={{width:"100%",height:260,objectFit:"cover",display:"block"}}/>
                 <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"40px 22px 16px",background:"linear-gradient(transparent,rgba(0,0,0,0.65))",display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
-                  <span style={{background:"#38A169",color:"white",fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,display:"inline-block"}}>
-                    💡 Buen momento para reservar
+                  {(()=>{ const nv = selProp.price<38?"bajo":selProp.price>46?"alto":"normal";
+                    const col = nv==="bajo"?"#38A169":nv==="alto"?C.red:"#718096";
+                    return (
+                  <span style={{background:col,color:"white",fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,display:"inline-block"}}>
+                    💡 Precio {nv}
                   </span>
+                    ); })()}
                   <div style={{background:"rgba(27,55,100,0.85)",color:"white",fontSize:22,fontWeight:800,padding:"4px 12px",borderRadius:8}}>
                     ${selProp.price}<span style={{fontSize:11,fontWeight:400}}>/noche</span>
                   </div>
@@ -970,10 +954,15 @@ export default function PropTEC() {
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:"1px solid #EDF2F7",borderBottom:"1px solid #EDF2F7",marginBottom:16}}>
                   <span style={{fontSize:20}}>💡</span>
+                  {(()=>{ const nv = selProp.price<38?"bajo":selProp.price>46?"alto":"normal";
+                  const col = nv==="bajo"?"#276749":nv==="alto"?C.red:"#4A5568";
+                  const txt = {bajo:"Precio bajo frente a reservas comparables",normal:"Precio normal frente a reservas comparables",alto:"Precio alto frente a reservas comparables"}[nv];
+                  return (
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,color:"#276749"}}>Precio por debajo del promedio histórico</div>
-                    <div style={{fontSize:10,color:C.muted}}>Promedio zona: $42/noche · Tendencia: estable</div>
+                    <div style={{fontSize:11,fontWeight:700,color:col}}>{txt}</div>
+                    <div style={{fontSize:10,color:C.muted}}>Mediana de reservas comparables: $42/noche · Precio actual: ${selProp.price}/noche</div>
                   </div>
+                  ); })()}
                 </div>
                 <button onClick={()=>{ setResvDone(false); setTenTab("reservar"); }}
                   style={{width:"100%",padding:"13px",background:C.greenB,color:"white",border:"none",borderRadius:9,fontWeight:700,cursor:"pointer",fontSize:14}}>
@@ -991,7 +980,7 @@ export default function PropTEC() {
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:400,textAlign:"center"}}>
                 <div style={{fontSize:64,marginBottom:24}}>✅</div>
                 <div style={{fontSize:20,fontWeight:800,color:"#276749",marginBottom:8}}>¡Reserva confirmada!</div>
-                <div style={{fontSize:12,color:C.muted,marginBottom:24}}>Tu reserva ha sido enviada al gestor. Recibirás un correo de confirmación.</div>
+                <div style={{fontSize:12,color:C.muted,marginBottom:24}}>Tu reserva ha sido registrada. Puedes consultarla en Mis reservas.</div>
                 <button onClick={()=>{ setTenTab("buscar"); setResvForm({entrada:"",salida:""}); }}
                   style={{padding:"10px 24px",background:C.greenB,color:"white",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer",fontSize:14}}>
                   Volver al inicio
